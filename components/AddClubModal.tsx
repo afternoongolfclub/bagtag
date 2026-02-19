@@ -3,7 +3,8 @@ import React, { useState, useRef } from 'react';
 import { Club, ClubType, ClubStatus, AIScanResult } from '../types.ts';
 import { X, Camera, Loader2, Sparkles, Receipt, Database, LayoutGrid } from 'lucide-react';
 import { analyzeClubImage, analyzeReceiptImage, fileToGenerativePart, searchClubDatabase } from '../services/geminiService.ts';
-import { supabase } from '../lib/supabase.ts';
+import { storage } from '../lib/firebase.ts';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface AddClubModalProps {
   onClose: () => void;
@@ -39,13 +40,12 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
   const isAccessory = type === ClubType.ACCESSORY;
   const isIron = type === ClubType.IRON;
 
-  const uploadFile = async (file: File, bucket: string): Promise<string> => {
+  const uploadFile = async (file: File, folder: string): Promise<string> => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-    const { data, error } = await supabase.storage.from(bucket).upload(fileName, file);
-    if (error) throw error;
-    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(data.path);
-    return publicUrl;
+    const fileName = `${folder}/${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+    const storageRef = ref(storage, fileName);
+    await uploadBytes(storageRef, file);
+    return getDownloadURL(storageRef);
   };
 
   const toggleIronSelection = (iron: string) => {
