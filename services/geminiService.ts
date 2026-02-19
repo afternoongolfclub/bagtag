@@ -15,7 +15,11 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
   });
 };
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+function getAI() {
+  const key = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!key) throw new Error('Gemini API key not configured');
+  return new GoogleGenAI({ apiKey: key });
+}
 
 const clubSchema: Schema = {
   type: Type.OBJECT,
@@ -59,7 +63,7 @@ const tradeInSchema: Schema = {
 
 export const analyzeClubImage = async (base64Data: string, mimeType: string): Promise<AIScanResult> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
@@ -82,7 +86,7 @@ export const analyzeClubImage = async (base64Data: string, mimeType: string): Pr
 
 export const searchClubDatabase = async (query: string): Promise<AIScanResult> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
@@ -106,7 +110,7 @@ export const searchClubDatabase = async (query: string): Promise<AIScanResult> =
 
 export const getClubModels = async (brand: string, clubType: string): Promise<string[]> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [{ text: `List 30 popular ${brand} ${clubType} models released since 2000.` }]
@@ -131,7 +135,7 @@ export const getClubModels = async (brand: string, clubType: string): Promise<st
 
 export const analyzeReceiptImage = async (base64Data: string, mimeType: string): Promise<AIScanResult> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
@@ -155,7 +159,7 @@ export const analyzeReceiptImage = async (base64Data: string, mimeType: string):
 export const getTradeInEstimate = async (brand: string, model: string, type: string, composition?: string[]): Promise<{low: number, high: number}> => {
   try {
     const prompt = `Estimate trade-in value for ${brand} ${model} ${type} in USD.`;
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
