@@ -1,0 +1,17 @@
+{
+  "name": "BagTag Golf Tracker",
+  "short_name": "BagTag",
+  "description": "The ultimate golf club tracker and inventory manager.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

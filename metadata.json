@@ -1,0 +1,7 @@
+{
+  "name": "BagTag",
+  "description": "The ultimate golf club tracker. Catalog your bag with AI-powered identification, store receipts, and manage your inventory.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
