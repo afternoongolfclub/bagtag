@@ -158,7 +158,8 @@ export const analyzeReceiptImage = async (base64Data: string, mimeType: string):
 
 export const getTradeInEstimate = async (brand: string, model: string, type: string, composition?: string[]): Promise<{low: number, high: number}> => {
   try {
-    const prompt = `Estimate trade-in value for ${brand} ${model} ${type} in USD.`;
+    const setInfo = composition && composition.length > 0 ? ` (set: ${composition.join(', ')})` : '';
+    const prompt = `You are a golf equipment valuation expert. Using PGA Value Guide pricing as your primary reference, estimate the current trade-in value for a used ${brand} ${model} ${type}${setInfo} in good condition. Base your low and high estimates on PGA Value Guide ranges for this equipment. Return values in USD.`;
     const response = await getAI().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
@@ -168,8 +169,10 @@ export const getTradeInEstimate = async (brand: string, model: string, type: str
         temperature: 0.1,
       }
     });
-    return response.text ? JSON.parse(response.text) : { low: 0, high: 0 };
+    const parsed = response.text ? JSON.parse(response.text) : null;
+    if (!parsed || !parsed.low || !parsed.high) throw new Error('Invalid response');
+    return parsed;
   } catch (error) {
-    return { low: 0, high: 0 };
+    throw error;
   }
 };

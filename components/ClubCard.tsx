@@ -176,10 +176,10 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
         {/* Trade-In Value Button */}
         {!readOnly && (
           <div className="pt-2">
-            {club.tradeInLow ? (
+            {club.tradeInLow != null && club.tradeInLow > 0 ? (
               <div className="bg-slate-900 text-white p-2.5 rounded-xl flex items-center justify-between shadow-sm">
                 <div>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase leading-none mb-0.5">Trade-In Range</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase leading-none mb-0.5">Trade-In Range · PGA Value Guide</p>
                   <p className="text-xs font-bold text-emerald-400">${club.tradeInLow} - ${club.tradeInHigh}</p>
                 </div>
                 <button onClick={handleCheckTradeIn} disabled={loadingTradeIn} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors shrink-0">
@@ -193,7 +193,7 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
                 className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-slate-300 text-[10px] font-bold text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-all uppercase"
               >
                 {loadingTradeIn ? <RefreshCw size={12} className="animate-spin" /> : <Banknote size={12} />}
-                {loadingTradeIn ? "Fetching Values..." : "Get Trade-In Estimates"}
+                {loadingTradeIn ? "Fetching Values..." : "Get Trade-In Value (PGA Guide)"}
               </button>
             )}
           </div>

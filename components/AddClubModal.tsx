@@ -14,6 +14,15 @@ interface AddClubModalProps {
 
 const IRON_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'PW', 'AW', 'GW', 'SW', 'LW'];
 
+const GOLF_BRANDS = [
+  'Callaway', 'TaylorMade', 'Titleist', 'Ping', 'Cobra', 'Cleveland',
+  'Mizuno', 'Wilson', 'Srixon', 'Bridgestone', 'PXG', 'Tour Edge',
+  'Honma', 'Miura', 'Adams', 'Ben Hogan', 'Acushnet', 'MacGregor',
+  'Tommy Armour', 'Lynx', 'Odyssey', 'Scotty Cameron', 'Bettinardi',
+  'Yes! Golf', 'Evnroll', 'SeeMore', 'L.A.B. Golf', 'Vokey', 'Artisan',
+  'Fourteen', 'Other'
+];
+
 const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialData }) => {
   const [loading, setLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<string>('');
@@ -22,6 +31,9 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
   const [type, setType] = useState<ClubType>(initialData?.type || ClubType.DRIVER);
   const [status, setStatus] = useState<ClubStatus>(initialData?.status || ClubStatus.BAG);
   const [brand, setBrand] = useState(initialData?.brand || '');
+  const [brandIsCustom, setBrandIsCustom] = useState(
+    !!initialData?.brand && !GOLF_BRANDS.slice(0, -1).includes(initialData.brand)
+  );
   const [model, setModel] = useState(initialData?.model || '');
   const [loft, setLoft] = useState(initialData?.loft || '');
   const [isSet, setIsSet] = useState<boolean>(!!initialData?.setComposition && initialData.setComposition.length > 0);
@@ -61,7 +73,10 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
     setAiStatus('Searching...');
     try {
       const result: AIScanResult = await searchClubDatabase(searchQuery);
-      if (result.brand) setBrand(result.brand);
+      if (result.brand) {
+        setBrand(result.brand);
+        setBrandIsCustom(!GOLF_BRANDS.slice(0, -1).includes(result.brand));
+      }
       if (result.model) setModel(result.model);
       if (result.type) setType(result.type);
       if (result.loft) setLoft(result.loft);
@@ -81,7 +96,10 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
       setPhotoUrl(url);
       const base64Data = await fileToGenerativePart(file);
       const result: AIScanResult = await analyzeClubImage(base64Data, file.type);
-      if (result.brand) setBrand(result.brand);
+      if (result.brand) {
+        setBrand(result.brand);
+        setBrandIsCustom(!GOLF_BRANDS.slice(0, -1).includes(result.brand));
+      }
       if (result.model) setModel(result.model);
       if (result.type) setType(result.type);
       if (result.setComposition) { setComposition(result.setComposition); setIsSet(true); }
@@ -201,7 +219,34 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Brand</label>
-                <input type="text" required value={brand} onChange={(e) => setBrand(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Titleist" />
+                <select
+                  value={brandIsCustom ? 'Other' : brand}
+                  onChange={(e) => {
+                    if (e.target.value === 'Other') {
+                      setBrandIsCustom(true);
+                      setBrand('');
+                    } else {
+                      setBrandIsCustom(false);
+                      setBrand(e.target.value);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  required={!brandIsCustom}
+                >
+                  <option value="">Select brand...</option>
+                  {GOLF_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+                {brandIsCustom && (
+                  <input
+                    type="text"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm mt-2"
+                    placeholder="Enter brand name"
+                    required
+                    autoFocus
+                  />
+                )}
               </div>
               <div className="col-span-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Model</label>
