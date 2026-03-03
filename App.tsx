@@ -18,7 +18,8 @@ import {
   doc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { Plus, Download, Search, LayoutGrid, Archive, LogIn, LogOut, User as UserIcon, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Plus, Download, Search, LayoutGrid, Archive, LogIn, LogOut, User as UserIcon, ShieldAlert, ShieldCheck, Target } from 'lucide-react';
+import BagMapping from './components/BagMapping.tsx';
 
 const WIFE_MODE_CLUBS: Club[] = [
   {
@@ -60,6 +61,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ClubStatus>(ClubStatus.BAG);
   const [isWifeMode, setIsWifeMode] = useState(false);
+  const [isBagMapOpen, setIsBagMapOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -204,6 +206,7 @@ export default function App() {
              >
               {isWifeMode ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
              </button>
+             {!isWifeMode && user && <button onClick={() => setIsBagMapOpen(true)} className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-emerald-600 px-3 py-2 rounded-lg"><Target size={18} /><span>Bag Map</span></button>}
              {!isWifeMode && <button onClick={() => generatePDF(clubs)} className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-emerald-600 px-3 py-2 rounded-lg"><Download size={18} /><span>Export PDF</span></button>}
             {!isWifeMode && user && <button onClick={openAddModal} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium shadow-sm flex items-center gap-2 text-sm sm:text-base"><Plus size={18} /><span>Add Club</span></button>}
             <div className="h-6 w-px bg-slate-200 mx-1"></div>
@@ -260,6 +263,7 @@ export default function App() {
       </main>
 
       {isAddModalOpen && !isWifeMode && <AddClubModal onClose={() => setIsAddModalOpen(false)} onSave={handleSaveClub} initialData={editingClub || undefined}/>}
+      {isBagMapOpen && !isWifeMode && <BagMapping clubs={clubs} onUpdate={handleSaveClub} onClose={() => setIsBagMapOpen(false)} />}
       {isLoginModalOpen && <LoginModal onClose={() => setIsLoginModalOpen(false)} />}
     </div>
   );

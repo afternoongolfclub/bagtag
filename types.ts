@@ -15,6 +15,15 @@ export enum ClubStatus {
   LOCKER = 'Locker Room'
 }
 
+export interface PerClubLaunchData {
+  carryDistance?: number; // yards
+  totalDistance?: number; // yards
+  ballSpeed?: number; // mph
+  clubSpeed?: number; // mph
+  spinRate?: number; // rpm
+  launchAngle?: number; // degrees
+}
+
 export interface LaunchMonitorData {
   carryDistance?: number; // yards
   totalDistance?: number; // yards
@@ -24,6 +33,7 @@ export interface LaunchMonitorData {
   spinRate?: number; // rpm
   launchAngle?: number; // degrees
   notes?: string;
+  perClubData?: { [clubLabel: string]: PerClubLaunchData }; // per-iron data for sets
 }
 
 export interface Club {
