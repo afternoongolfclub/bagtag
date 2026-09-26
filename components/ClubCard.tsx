@@ -4,6 +4,8 @@ import { Club, ClubStatus, ClubDisposition, LaunchMonitorData } from '../types.t
 import { Trash2, FileText, Calendar, DollarSign, Image as ImageIcon, ChevronDown, ChevronUp, Archive, ShoppingBag, ArrowUpRight, Layers, BarChart2, Save, Edit2, RefreshCw, ExternalLink, Banknote, Pencil, Info, Tag, Repeat, Undo2 } from 'lucide-react';
 import { getTradeInEstimate } from '../services/geminiService.ts';
 
+const IRON_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'PW', 'AW', 'GW', 'SW', 'LW'];
+
 interface ClubCardProps {
   club: Club;
   onDelete: (id: string) => void;
@@ -54,10 +56,15 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
   const renderSetComposition = () => {
     if (!club.setComposition || club.setComposition.length === 0) return null;
     
-    const isStandardRun = club.setComposition.length > 2;
-    const first = club.setComposition[0];
-    const last = club.setComposition[club.setComposition.length - 1];
-    const displayText = isStandardRun ? `${first}-${last}` : club.setComposition.join(', ');
+    // Collapse only truly consecutive irons into ranges, e.g. 5-PW, GW
+    const sorted = [...club.setComposition].sort((a, b) => IRON_ORDER.indexOf(a) - IRON_ORDER.indexOf(b));
+    const runs: string[][] = [];
+    sorted.forEach(iron => {
+      const run = runs[runs.length - 1];
+      if (run && IRON_ORDER.indexOf(iron) === IRON_ORDER.indexOf(run[run.length - 1]) + 1) run.push(iron);
+      else runs.push([iron]);
+    });
+    const displayText = runs.map(run => run.length > 2 ? `${run[0]}-${run[run.length - 1]}` : run.join(', ')).join(', ');
 
     return (
        <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md mt-2 w-fit">

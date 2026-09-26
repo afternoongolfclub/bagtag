@@ -80,7 +80,6 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
       if (result.model) setModel(result.model);
       if (result.type) setType(result.type);
       if (result.loft) setLoft(result.loft);
-      if (result.setComposition) { setComposition(result.setComposition); setIsSet(true); }
       setAiStatus('Result found!');
     } catch { setAiStatus('Not found.'); }
     finally { setLoading(false); }
@@ -102,7 +101,6 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
       }
       if (result.model) setModel(result.model);
       if (result.type) setType(result.type);
-      if (result.setComposition) { setComposition(result.setComposition); setIsSet(true); }
       setAiStatus('AI analysis complete!');
     } catch { setAiStatus('Upload failed.'); }
     finally { setLoading(false); }
