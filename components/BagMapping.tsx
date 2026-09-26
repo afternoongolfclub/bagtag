@@ -69,7 +69,9 @@ function buildRows(clubs: Club[]): BagMapRow[] {
     } else {
       rows.push({
         clubId: club.id,
-        label: club.type === ClubType.WEDGE ? `${club.model}${club.loft ? ` (${club.loft}°)` : ''}` : `${club.brand} ${club.model}`,
+        label: club.type === ClubType.WEDGE ? `${club.model}${club.loft ? ` (${club.loft}°)` : ''}`
+          : club.type === ClubType.IRON && club.ironNumber ? `${club.ironNumber} Iron (${club.brand} ${club.model})`
+          : `${club.brand} ${club.model}`,
         type: club.type,
         loft: club.loft || '',
         carry: club.launchData?.carryDistance,
@@ -89,8 +91,10 @@ function buildRows(clubs: Club[]): BagMapRow[] {
     const typeB = CLUB_TYPE_ORDER.indexOf(b.type);
     if (typeA !== typeB) return typeA - typeB;
     // Within irons, sort by iron order
-    if (a.type === ClubType.IRON && b.type === ClubType.IRON && a.ironLabel && b.ironLabel) {
-      return getIronSortIndex(a.ironLabel) - getIronSortIndex(b.ironLabel);
+    if (a.type === ClubType.IRON && b.type === ClubType.IRON) {
+      const ironA = a.ironLabel ?? a.sourceClub?.ironNumber;
+      const ironB = b.ironLabel ?? b.sourceClub?.ironNumber;
+      if (ironA && ironB) return getIronSortIndex(ironA) - getIronSortIndex(ironB);
     }
     // Otherwise sort by carry distance descending
     const carryA = a.carry || 0;

@@ -59,6 +59,7 @@ const clubSortValue = (club: Club): number => {
   if (club.setComposition && club.setComposition.length > 0) {
     return Math.min(...club.setComposition.map(i => IRON_ORDER.indexOf(i)).filter(i => i >= 0), Infinity);
   }
+  if (club.ironNumber && IRON_ORDER.includes(club.ironNumber)) return IRON_ORDER.indexOf(club.ironNumber);
   const loft = parseFloat(club.loft ?? '');
   return isNaN(loft) ? Infinity : loft;
 };
@@ -103,6 +104,7 @@ export default function App() {
           model: item.model,
           loft: item.loft,
           setComposition: item.setComposition,
+          ironNumber: item.ironNumber ?? undefined,
           shaftMakeModel: item.shaftMakeModel,
           shaftStiffness: item.shaftStiffness,
           photoUrl: item.photoUrl,
@@ -139,6 +141,7 @@ export default function App() {
       model: club.model,
       loft: club.loft ?? null,
       setComposition: club.setComposition ?? null,
+      ironNumber: club.ironNumber ?? null,
       shaftMakeModel: club.shaftMakeModel ?? null,
       shaftStiffness: club.shaftStiffness ?? null,
       photoUrl: club.photoUrl ?? null,

@@ -38,6 +38,7 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
   const [loft, setLoft] = useState(initialData?.loft || '');
   const [isSet, setIsSet] = useState<boolean>(!!initialData?.setComposition && initialData.setComposition.length > 0);
   const [composition, setComposition] = useState<string[]>(initialData?.setComposition || []);
+  const [ironNumber, setIronNumber] = useState(initialData?.ironNumber || '');
   const [shaftMakeModel, setShaftMakeModel] = useState(initialData?.shaftMakeModel || '');
   const [shaftStiffness, setShaftStiffness] = useState(initialData?.shaftStiffness || '');
   const [price, setPrice] = useState(initialData?.price ? initialData.price.toString() : '');
@@ -136,6 +137,7 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
       type, brand, model,
       loft: (isAccessory || (isIron && isSet) || !loft) ? undefined : loft,
       setComposition: finalComposition && finalComposition.length > 0 ? finalComposition : undefined,
+      ironNumber: (isIron && !isSet && ironNumber) ? ironNumber : undefined,
       shaftMakeModel: (isAccessory || !shaftMakeModel) ? undefined : shaftMakeModel,
       shaftStiffness: (isAccessory || !shaftStiffness) ? undefined : shaftStiffness,
       price: price ? parseFloat(price) : undefined,
@@ -208,6 +210,13 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
                       <button type="button" onClick={() => setIsSet(true)} className={`px-3 py-1 text-[9px] font-bold rounded uppercase ${isSet ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>Set</button>
                     </div>
                   </div>
+                  {!isSet && (
+                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                      {IRON_ORDER.map(iron => (
+                        <button key={iron} type="button" onClick={() => setIronNumber(ironNumber === iron ? '' : iron)} className={`py-1.5 text-[10px] font-bold rounded-lg border transition-all ${ironNumber === iron ? 'bg-emerald-600 border-emerald-700 text-white' : 'bg-white border-emerald-100 text-emerald-600'}`}>{iron}</button>
+                      ))}
+                    </div>
+                  )}
                   {isSet && (
                     <div className="space-y-3">
                       <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">

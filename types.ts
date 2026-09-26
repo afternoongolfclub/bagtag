@@ -48,6 +48,7 @@ export interface Club {
   model: string;
   loft?: string;
   setComposition?: string[]; // e.g. ["4", "5", "6", "PW"]
+  ironNumber?: string; // single iron only, e.g. "7" or "PW"
   shaftMakeModel?: string;
   shaftStiffness?: string;
   photoUrl?: string;

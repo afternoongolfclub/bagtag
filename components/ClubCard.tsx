@@ -185,6 +185,11 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
             )}
           </div>
           {renderSetComposition()}
+          {club.ironNumber && !club.setComposition?.length && (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md mt-2 w-fit">
+              {/^\d/.test(club.ironNumber) ? `${club.ironNumber} IRON` : club.ironNumber}
+            </div>
+          )}
         </div>
 
         {/* Configuration Grid */}
