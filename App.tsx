@@ -50,6 +50,19 @@ const WIFE_MODE_CLUBS: Club[] = [
   }
 ];
 
+// Bag order: Driver → Fairway → Hybrid → Irons → Wedges → Putter, then everything else
+const TYPE_ORDER = [ClubType.DRIVER, ClubType.WOOD, ClubType.HYBRID, ClubType.IRON, ClubType.WEDGE, ClubType.PUTTER, ClubType.ACCESSORY, ClubType.OTHER];
+const IRON_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'PW', 'AW', 'GW', 'SW', 'LW'];
+
+// Within a type, lower loft (longer club) first; iron sets by their longest iron
+const clubSortValue = (club: Club): number => {
+  if (club.setComposition && club.setComposition.length > 0) {
+    return Math.min(...club.setComposition.map(i => IRON_ORDER.indexOf(i)).filter(i => i >= 0), Infinity);
+  }
+  const loft = parseFloat(club.loft ?? '');
+  return isNaN(loft) ? Infinity : loft;
+};
+
 export default function App() {
   const { user, firebaseUser, logout, isLoading: authLoading } = useAuth();
   
@@ -186,7 +199,11 @@ export default function App() {
       c.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.type.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch && c.status === activeTab;
-  }).sort((a, b) => Number(!!a.disposition) - Number(!!b.disposition));
+  }).sort((a, b) =>
+    Number(!!a.disposition) - Number(!!b.disposition) ||
+    TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) ||
+    clubSortValue(a) - clubSortValue(b)
+  );
 
   // Sold/traded clubs stay visible (stamped) but no longer count toward what you own
   const getRealItemCount = (items: Club[]) => items.reduce((total, item) => total + (item.setComposition?.length || 1), 0);
