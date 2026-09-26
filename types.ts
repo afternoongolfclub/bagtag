@@ -15,6 +15,11 @@ export enum ClubStatus {
   LOCKER = 'Locker Room'
 }
 
+export enum ClubDisposition {
+  SOLD = 'Sold',
+  TRADED = 'Traded'
+}
+
 export interface PerClubLaunchData {
   carryDistance?: number; // yards
   totalDistance?: number; // yards
@@ -56,6 +61,10 @@ export interface Club {
   tradeInLow?: number;
   tradeInHigh?: number;
   lastTradeInCheck?: number;
+  disposition?: ClubDisposition; // set once the club has left the collection
+  soldPrice?: number; // sale price, or trade-in credit received
+  soldDate?: string;
+  tradedFor?: string; // what the club was traded for
 }
 
 export interface AIScanResult {

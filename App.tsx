@@ -103,6 +103,10 @@ export default function App() {
           tradeInLow: item.tradeInLow,
           tradeInHigh: item.tradeInHigh,
           lastTradeInCheck: item.lastTradeInCheck,
+          disposition: item.disposition ?? undefined,
+          soldPrice: item.soldPrice ?? undefined,
+          soldDate: item.soldDate ?? undefined,
+          tradedFor: item.tradedFor ?? undefined,
         };
       });
       setClubs(mappedClubs);
@@ -134,6 +138,10 @@ export default function App() {
       tradeInLow: club.tradeInLow ?? null,
       tradeInHigh: club.tradeInHigh ?? null,
       lastTradeInCheck: club.lastTradeInCheck ?? null,
+      disposition: club.disposition ?? null,
+      soldPrice: club.soldPrice ?? null,
+      soldDate: club.soldDate ?? null,
+      tradedFor: club.tradedFor ?? null,
     };
 
     const clubsCol = collection(db, 'users', firebaseUser.uid, 'clubs');
@@ -178,15 +186,19 @@ export default function App() {
       c.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.type.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch && c.status === activeTab;
-  });
+  }).sort((a, b) => Number(!!a.disposition) - Number(!!b.disposition));
 
+  // Sold/traded clubs stay visible (stamped) but no longer count toward what you own
   const getRealItemCount = (items: Club[]) => items.reduce((total, item) => total + (item.setComposition?.length || 1), 0);
-  const bagItems = activeData.filter(c => c.status === ClubStatus.BAG);
-  const lockerItems = activeData.filter(c => c.status === ClubStatus.LOCKER);
+  const ownedData = activeData.filter(c => !c.disposition);
+  const goneData = activeData.filter(c => c.disposition);
+  const bagItems = ownedData.filter(c => c.status === ClubStatus.BAG);
+  const lockerItems = ownedData.filter(c => c.status === ClubStatus.LOCKER);
   const bagCount = getRealItemCount(bagItems);
   const lockerCount = getRealItemCount(lockerItems);
-  const totalClubsCount = getRealItemCount(activeData);
-  const totalValue = activeData.reduce((sum, c) => sum + (c.price || 0), 0);
+  const totalClubsCount = getRealItemCount(ownedData);
+  const totalValue = ownedData.reduce((sum, c) => sum + (c.price || 0), 0);
+  const recoupedValue = goneData.reduce((sum, c) => sum + (c.soldPrice || 0), 0);
 
   if (authLoading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div></div>;
 
@@ -207,7 +219,7 @@ export default function App() {
               {isWifeMode ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
              </button>
              {!isWifeMode && user && <button onClick={() => setIsBagMapOpen(true)} className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-emerald-600 px-3 py-2 rounded-lg"><Target size={18} /><span>Bag Map</span></button>}
-             {!isWifeMode && <button onClick={() => generatePDF(clubs)} className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-emerald-600 px-3 py-2 rounded-lg"><Download size={18} /><span>Export PDF</span></button>}
+             {!isWifeMode && <button onClick={() => generatePDF(clubs.filter(c => !c.disposition))} className="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-emerald-600 px-3 py-2 rounded-lg"><Download size={18} /><span>Export PDF</span></button>}
             {!isWifeMode && user && <button onClick={openAddModal} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium shadow-sm flex items-center gap-2 text-sm sm:text-base"><Plus size={18} /><span>Add Club</span></button>}
             <div className="h-6 w-px bg-slate-200 mx-1"></div>
             {user ? (
@@ -233,6 +245,7 @@ export default function App() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className={`p-4 rounded-xl border shadow-sm ${isWifeMode ? 'bg-stone-100 border-stone-200' : 'bg-white border-slate-200'}`}><p className="text-xs text-slate-500 uppercase font-semibold">Total Clubs</p><p className="text-2xl font-bold text-slate-800">{totalClubsCount}</p></div>
           <div className={`p-4 rounded-xl border shadow-sm ${isWifeMode ? 'bg-stone-100 border-stone-200' : 'bg-white border-slate-200'}`}><p className="text-xs text-slate-500 uppercase font-semibold">Total Value</p><p className={`text-2xl font-bold ${isWifeMode ? 'text-stone-600' : 'text-emerald-600'}`}>${totalValue.toFixed(2)}</p></div>
+          {!isWifeMode && goneData.length > 0 && <div className="p-4 rounded-xl border shadow-sm bg-white border-slate-200"><p className="text-xs text-slate-500 uppercase font-semibold">Sold / Traded</p><p className="text-2xl font-bold text-red-600">${recoupedValue.toFixed(2)}</p><p className="text-[10px] text-slate-400 font-semibold uppercase">{goneData.length} item{goneData.length === 1 ? '' : 's'}</p></div>}
         </div>
 
         <div className={`flex space-x-1 rounded-xl p-1 mb-6 max-w-md ${isWifeMode ? 'bg-stone-200' : 'bg-slate-200'}`}>
@@ -263,7 +276,7 @@ export default function App() {
       </main>
 
       {isAddModalOpen && !isWifeMode && <AddClubModal onClose={() => setIsAddModalOpen(false)} onSave={handleSaveClub} initialData={editingClub || undefined}/>}
-      {isBagMapOpen && !isWifeMode && <BagMapping clubs={clubs} onUpdate={handleSaveClub} onClose={() => setIsBagMapOpen(false)} />}
+      {isBagMapOpen && !isWifeMode && <BagMapping clubs={clubs.filter(c => !c.disposition)} onUpdate={handleSaveClub} onClose={() => setIsBagMapOpen(false)} />}
       {isLoginModalOpen && <LoginModal onClose={() => setIsLoginModalOpen(false)} />}
     </div>
   );

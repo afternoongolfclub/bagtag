@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Club, ClubStatus, LaunchMonitorData } from '../types.ts';
-import { Trash2, FileText, Calendar, DollarSign, Image as ImageIcon, ChevronDown, ChevronUp, Archive, ShoppingBag, ArrowUpRight, Layers, BarChart2, Save, Edit2, RefreshCw, ExternalLink, Banknote, Pencil, Info } from 'lucide-react';
+import { Club, ClubStatus, ClubDisposition, LaunchMonitorData } from '../types.ts';
+import { Trash2, FileText, Calendar, DollarSign, Image as ImageIcon, ChevronDown, ChevronUp, Archive, ShoppingBag, ArrowUpRight, Layers, BarChart2, Save, Edit2, RefreshCw, ExternalLink, Banknote, Pencil, Info, Tag, Repeat, Undo2 } from 'lucide-react';
 import { getTradeInEstimate } from '../services/geminiService.ts';
 
 interface ClubCardProps {
@@ -18,10 +18,17 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
   const [isEditingLaunch, setIsEditingLaunch] = useState(false);
   const [loadingTradeIn, setLoadingTradeIn] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showDisposeForm, setShowDisposeForm] = useState(false);
+  const [disposeType, setDisposeType] = useState<ClubDisposition>(club.disposition || ClubDisposition.SOLD);
+  const [soldPrice, setSoldPrice] = useState(club.soldPrice != null ? club.soldPrice.toString() : '');
+  const [soldDate, setSoldDate] = useState(club.soldDate || new Date().toISOString().slice(0, 10));
+  const [tradedFor, setTradedFor] = useState(club.tradedFor || '');
   
   const [launchData, setLaunchData] = useState<LaunchMonitorData>(club.launchData || {});
 
   const isLocker = club.status === ClubStatus.LOCKER;
+  const isGone = !!club.disposition;
+  const isTraded = club.disposition === ClubDisposition.TRADED;
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
@@ -91,10 +98,39 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
     }
   };
 
+  const handleSaveDisposition = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUpdate) return;
+    const parsedPrice = parseFloat(soldPrice);
+    onUpdate({
+      ...club,
+      disposition: disposeType,
+      soldPrice: isNaN(parsedPrice) ? undefined : parsedPrice,
+      soldDate: soldDate || undefined,
+      tradedFor: disposeType === ClubDisposition.TRADED ? (tradedFor.trim() || undefined) : undefined,
+    });
+    setShowDisposeForm(false);
+  };
+
+  const handleUndoDisposition = () => {
+    if (!onUpdate) return;
+    onUpdate({ ...club, disposition: undefined, soldPrice: undefined, soldDate: undefined, tradedFor: undefined });
+    setShowDisposeForm(false);
+  };
+
   const hasLaunchData = club.launchData && Object.keys(club.launchData).length > 0;
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-md ${isLocker ? 'border-slate-200 opacity-95' : 'border-slate-200'}`}>
+    <div className={`relative bg-white rounded-2xl shadow-sm border overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-md ${isGone ? 'border-red-200' : isLocker ? 'border-slate-200 opacity-95' : 'border-slate-200'}`}>
+      {/* SOLD / TRADED stamp across the whole card */}
+      {isGone && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <div className={`-rotate-[25deg] border-[6px] rounded-xl px-6 py-1 font-black tracking-[0.2em] bg-white/70 shadow-lg ${isTraded ? 'text-5xl border-amber-500 text-amber-500' : 'text-6xl border-red-600 text-red-600'}`}>
+            {isTraded ? 'TRADED' : 'SOLD'}
+          </div>
+        </div>
+      )}
+
       {/* Header Image Section */}
       <div className="relative h-44 shrink-0 bg-slate-50 group">
         {club.photoUrl ? (
@@ -116,6 +152,9 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
           <div className="absolute top-3 right-3 flex flex-col gap-2">
             <button onClick={(e) => { e.stopPropagation(); onToggleStatus(club.id); }} className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm text-slate-600 hover:text-emerald-600 transition-colors" title="Move Location">
               {isLocker ? <ShoppingBag size={16} /> : <Archive size={16} />}
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); setShowDisposeForm(!showDisposeForm); }} className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm text-slate-600 hover:text-red-600 transition-colors" title="Mark Sold / Traded">
+              <Tag size={16} />
             </button>
             <button onClick={(e) => { e.stopPropagation(); onEdit(club); }} className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm text-slate-600 hover:text-blue-600 transition-colors" title="Edit Item">
               <Pencil size={16} />
@@ -173,8 +212,71 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
           )}
         </div>
 
+        {/* Sold / Traded Summary */}
+        {isGone && !showDisposeForm && (
+          <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${isTraded ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+            <div className="min-w-0">
+              <p className={`text-[9px] font-bold uppercase leading-none mb-0.5 ${isTraded ? 'text-amber-600' : 'text-red-500'}`}>
+                {isTraded ? 'Traded' : 'Sold'}{club.soldDate ? ` · ${formatDate(club.soldDate)}` : ''}
+              </p>
+              <p className="text-xs font-bold text-slate-800 truncate">
+                {club.soldPrice != null ? `$${club.soldPrice.toLocaleString()}` : '—'}
+                {isTraded && club.tradedFor && <span className="text-slate-500 font-semibold"> for {club.tradedFor}</span>}
+              </p>
+            </div>
+            {!readOnly && (
+              <button onClick={() => setShowDisposeForm(true)} className="relative z-30 p-1.5 text-slate-500 hover:text-slate-800 rounded-lg shrink-0" title="Edit sale / trade">
+                <Edit2 size={14} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Sold / Traded Form */}
+        {!readOnly && showDisposeForm && (
+          <form onSubmit={handleSaveDisposition} className="relative z-30 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex bg-white p-1 rounded-lg border border-slate-200">
+              <button type="button" onClick={() => setDisposeType(ClubDisposition.SOLD)} className={`flex-1 flex items-center justify-center gap-1 py-1 text-[10px] font-bold rounded uppercase transition-all ${disposeType === ClubDisposition.SOLD ? 'bg-red-600 text-white shadow-sm' : 'text-slate-400'}`}>
+                <Tag size={12} /> Sold
+              </button>
+              <button type="button" onClick={() => setDisposeType(ClubDisposition.TRADED)} className={`flex-1 flex items-center justify-center gap-1 py-1 text-[10px] font-bold rounded uppercase transition-all ${disposeType === ClubDisposition.TRADED ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400'}`}>
+                <Repeat size={12} /> Traded
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">{disposeType === ClubDisposition.TRADED ? 'Trade Credit ($)' : 'Sold For ($)'}</span>
+                <input type="number" min="0" step="0.01" placeholder="0.00" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className="w-full text-xs p-2 border rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white" />
+              </label>
+              <label className="block">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Date</span>
+                <input type="date" value={soldDate} onChange={(e) => setSoldDate(e.target.value)} className="w-full text-xs p-2 border rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white" />
+              </label>
+              {disposeType === ClubDisposition.TRADED && (
+                <label className="block col-span-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Traded For</span>
+                  <input type="text" placeholder="e.g. Titleist GT2 driver" value={tradedFor} onChange={(e) => setTradedFor(e.target.value)} className="w-full text-xs p-2 border rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none bg-white" />
+                </label>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className={`flex-1 text-white py-2 rounded-lg text-[10px] font-bold uppercase shadow-sm ${disposeType === ClubDisposition.TRADED ? 'bg-amber-500' : 'bg-red-600'}`}>
+                <Save size={12} className="inline mr-1" /> Mark {disposeType}
+              </button>
+              {isGone && (
+                <button type="button" onClick={handleUndoDisposition} className="px-3 py-2 rounded-lg text-[10px] font-bold uppercase text-slate-500 border border-slate-200 bg-white hover:text-slate-800" title="Back in collection">
+                  <Undo2 size={12} className="inline mr-1" /> Undo
+                </button>
+              )}
+              <button type="button" onClick={() => setShowDisposeForm(false)} className="px-3 py-2 rounded-lg text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600">
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
         {/* Trade-In Value Button */}
-        {!readOnly && (
+        {!readOnly && !isGone && (
           <div className="pt-2">
             {club.tradeInLow != null && club.tradeInLow > 0 ? (
               <div className="bg-slate-900 text-white p-2.5 rounded-xl flex items-center justify-between shadow-sm">

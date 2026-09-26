@@ -145,6 +145,13 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
       notes: notes || undefined,
       photoUrl, receiptUrl, status,
       launchData: initialData?.launchData,
+      tradeInLow: initialData?.tradeInLow,
+      tradeInHigh: initialData?.tradeInHigh,
+      lastTradeInCheck: initialData?.lastTradeInCheck,
+      disposition: initialData?.disposition,
+      soldPrice: initialData?.soldPrice,
+      soldDate: initialData?.soldDate,
+      tradedFor: initialData?.tradedFor,
     });
     onClose();
   };
