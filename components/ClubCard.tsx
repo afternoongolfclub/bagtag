@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Club, ClubStatus, ClubDisposition, LaunchMonitorData } from '../types.ts';
-import { Trash2, FileText, Calendar, DollarSign, Image as ImageIcon, ChevronDown, ChevronUp, Archive, ShoppingBag, ArrowUpRight, Layers, BarChart2, Save, Edit2, RefreshCw, ExternalLink, Banknote, Pencil, Info, Tag, Repeat, Undo2 } from 'lucide-react';
+import { Trash2, FileText, Calendar, DollarSign, Image as ImageIcon, ChevronDown, ChevronUp, Archive, ShoppingBag, ArrowUpRight, Layers, BarChart2, Save, Edit2, RefreshCw, ExternalLink, Banknote, Pencil, Info, Tag, Repeat, Undo2, Send } from 'lucide-react';
 import { getTradeInEstimate } from '../services/geminiService.ts';
 
 const IRON_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'PW', 'AW', 'GW', 'SW', 'LW'];
@@ -12,10 +12,12 @@ interface ClubCardProps {
   onUpdate?: (club: Club) => void;
   onEdit: (club: Club) => void;
   onToggleStatus: (id: string) => void;
+  onTransfer?: (club: Club) => void;
+  onCancelTransfer?: (club: Club) => void;
   readOnly?: boolean;
 }
 
-const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, onToggleStatus, readOnly = false }) => {
+const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, onToggleStatus, onTransfer, onCancelTransfer, readOnly = false }) => {
   const [showLaunchData, setShowLaunchData] = useState(false);
   const [isEditingLaunch, setIsEditingLaunch] = useState(false);
   const [loadingTradeIn, setLoadingTradeIn] = useState(false);
@@ -163,6 +165,11 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
             <button onClick={(e) => { e.stopPropagation(); setShowDisposeForm(!showDisposeForm); }} className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm text-slate-600 hover:text-red-600 transition-colors" title="Mark Sold / Traded">
               <Tag size={16} />
             </button>
+            {onTransfer && !isGone && !club.pendingTransferId && (
+              <button onClick={(e) => { e.stopPropagation(); onTransfer(club); }} className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm text-slate-600 hover:text-emerald-600 transition-colors" title="Move to Another User">
+                <Send size={16} />
+              </button>
+            )}
             <button onClick={(e) => { e.stopPropagation(); onEdit(club); }} className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm text-slate-600 hover:text-blue-600 transition-colors" title="Edit Item">
               <Pencil size={16} />
             </button>
@@ -223,6 +230,21 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onDelete, onUpdate, onEdit, o
             </div>
           )}
         </div>
+
+        {/* Pending move to another user */}
+        {club.pendingTransferId && (
+          <div className="p-2.5 rounded-xl border bg-blue-50 border-blue-200 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold uppercase leading-none mb-0.5 text-blue-500">Moving · Awaiting Acceptance</p>
+              <p className="text-xs font-bold text-slate-800 truncate">{club.pendingTransferTo}</p>
+            </div>
+            {!readOnly && onCancelTransfer && (
+              <button onClick={() => onCancelTransfer(club)} className="px-2 py-1 text-[10px] font-bold uppercase text-slate-500 hover:text-red-600 rounded-lg shrink-0">
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Sold / Traded Summary */}
         {isGone && !showDisposeForm && (

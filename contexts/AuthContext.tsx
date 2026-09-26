@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase.ts';
 import { User } from '../types.ts';
+import { registerInDirectory } from '../services/transferService.ts';
 
 interface AuthContextType {
   user: User | null;
@@ -31,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) {
         setFirebaseUser(fbUser);
+        registerInDirectory(fbUser).catch(err => console.error('Directory register error:', err));
         setUser({
           email: fbUser.email!,
           name: fbUser.displayName || fbUser.email!.split('@')[0],
@@ -51,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, pass: string, name: string) => {
     const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(fbUser, { displayName: name });
+    registerInDirectory(fbUser).catch(err => console.error('Directory register error:', err));
     setUser({ email: fbUser.email!, name });
   };
 

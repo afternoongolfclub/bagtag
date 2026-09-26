@@ -18,8 +18,18 @@ import {
   doc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { Plus, Download, Search, LayoutGrid, Archive, LogIn, LogOut, User as UserIcon, ShieldAlert, ShieldCheck, Target } from 'lucide-react';
+import { Plus, Download, Search, LayoutGrid, Archive, LogIn, LogOut, User as UserIcon, ShieldAlert, ShieldCheck, Target, Inbox, Check, X } from 'lucide-react';
 import BagMapping from './components/BagMapping.tsx';
+import TransferModal from './components/TransferModal.tsx';
+import {
+  ClubTransfer,
+  createTransfer,
+  getIncomingTransfers,
+  getOutgoingTransfers,
+  acceptTransfer,
+  declineTransfer,
+  deleteTransfer,
+} from './services/transferService.ts';
 
 const WIFE_MODE_CLUBS: Club[] = [
   {
@@ -64,6 +74,63 @@ const clubSortValue = (club: Club): number => {
   return isNaN(loft) ? Infinity : loft;
 };
 
+// Firestore stores missing fields as null; the app uses undefined
+const docToClub = (id: string, item: any): Club => ({
+  id,
+  type: item.type as ClubType,
+  brand: item.brand,
+  model: item.model,
+  loft: item.loft,
+  setComposition: item.setComposition,
+  ironNumber: item.ironNumber ?? undefined,
+  shaftMakeModel: item.shaftMakeModel,
+  shaftStiffness: item.shaftStiffness,
+  photoUrl: item.photoUrl,
+  receiptUrl: item.receiptUrl,
+  purchaseDate: item.purchaseDate,
+  price: item.price,
+  notes: item.notes,
+  launchData: item.launchData,
+  dateAdded: item.createdAt?.toMillis?.() ?? Date.now(),
+  status: item.status as ClubStatus,
+  tradeInLow: item.tradeInLow,
+  tradeInHigh: item.tradeInHigh,
+  lastTradeInCheck: item.lastTradeInCheck,
+  disposition: item.disposition ?? undefined,
+  soldPrice: item.soldPrice ?? undefined,
+  soldDate: item.soldDate ?? undefined,
+  tradedFor: item.tradedFor ?? undefined,
+  pendingTransferId: item.pendingTransferId ?? undefined,
+  pendingTransferTo: item.pendingTransferTo ?? undefined,
+});
+
+const clubToDoc = (club: Club) => ({
+  type: club.type,
+  brand: club.brand,
+  model: club.model,
+  loft: club.loft ?? null,
+  setComposition: club.setComposition ?? null,
+  ironNumber: club.ironNumber ?? null,
+  shaftMakeModel: club.shaftMakeModel ?? null,
+  shaftStiffness: club.shaftStiffness ?? null,
+  photoUrl: club.photoUrl ?? null,
+  receiptUrl: club.receiptUrl ?? null,
+  purchaseDate: club.purchaseDate ?? null,
+  price: club.price ?? null,
+  notes: club.notes ?? null,
+  launchData: club.launchData ?? null,
+  status: club.status,
+  tradeInLow: club.tradeInLow ?? null,
+  tradeInHigh: club.tradeInHigh ?? null,
+  lastTradeInCheck: club.lastTradeInCheck ?? null,
+  disposition: club.disposition ?? null,
+  soldPrice: club.soldPrice ?? null,
+  soldDate: club.soldDate ?? null,
+  tradedFor: club.tradedFor ?? null,
+  pendingTransferId: club.pendingTransferId ?? null,
+  pendingTransferTo: club.pendingTransferTo ?? null,
+});
+
 export default function App() {
   const { user, firebaseUser, logout, isLoading: authLoading } = useAuth();
   
@@ -76,6 +143,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ClubStatus>(ClubStatus.BAG);
   const [isWifeMode, setIsWifeMode] = useState(false);
   const [isBagMapOpen, setIsBagMapOpen] = useState(false);
+  const [transferClub, setTransferClub] = useState<Club | null>(null);
+  const [incomingTransfers, setIncomingTransfers] = useState<ClubTransfer[]>([]);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -89,42 +159,14 @@ export default function App() {
       return;
     }
     setLoading(true);
+    await syncTransfers();
     try {
       const q = query(
         collection(db, 'users', firebaseUser.uid, 'clubs'),
         orderBy('createdAt', 'desc')
       );
       const snapshot = await getDocs(q);
-      const mappedClubs: Club[] = snapshot.docs.map(docSnap => {
-        const item = docSnap.data();
-        return {
-          id: docSnap.id,
-          type: item.type as ClubType,
-          brand: item.brand,
-          model: item.model,
-          loft: item.loft,
-          setComposition: item.setComposition,
-          ironNumber: item.ironNumber ?? undefined,
-          shaftMakeModel: item.shaftMakeModel,
-          shaftStiffness: item.shaftStiffness,
-          photoUrl: item.photoUrl,
-          receiptUrl: item.receiptUrl,
-          purchaseDate: item.purchaseDate,
-          price: item.price,
-          notes: item.notes,
-          launchData: item.launchData,
-          dateAdded: item.createdAt?.toMillis?.() ?? Date.now(),
-          status: item.status as ClubStatus,
-          tradeInLow: item.tradeInLow,
-          tradeInHigh: item.tradeInHigh,
-          lastTradeInCheck: item.lastTradeInCheck,
-          disposition: item.disposition ?? undefined,
-          soldPrice: item.soldPrice ?? undefined,
-          soldDate: item.soldDate ?? undefined,
-          tradedFor: item.tradedFor ?? undefined,
-        };
-      });
-      setClubs(mappedClubs);
+      setClubs(snapshot.docs.map(docSnap => docToClub(docSnap.id, docSnap.data())));
     } catch (err) {
       console.error("Fetch clubs error:", err);
     } finally {
@@ -132,33 +174,82 @@ export default function App() {
     }
   };
 
+  // Finish moves the recipient has answered, and load moves sent to this user.
+  // Failures here (e.g. rules not yet deployed) must not block loading clubs.
+  const syncTransfers = async () => {
+    if (!firebaseUser) return;
+    const uid = firebaseUser.uid;
+    try {
+      const outgoing = await getOutgoingTransfers(uid);
+      for (const t of outgoing) {
+        try {
+          const clubRef = doc(db, 'users', uid, 'clubs', t.clubId);
+          if (t.status === 'accepted') {
+            await deleteDoc(clubRef);
+            await deleteTransfer(t.id);
+          } else if (t.status === 'declined') {
+            await updateDoc(clubRef, { pendingTransferId: null, pendingTransferTo: null });
+            await deleteTransfer(t.id);
+          }
+        } catch (err) {
+          console.error('Transfer sync error:', err);
+        }
+      }
+    } catch (err) {
+      console.error('Outgoing transfers error:', err);
+    }
+    try {
+      setIncomingTransfers(await getIncomingTransfers(uid));
+    } catch (err) {
+      console.error('Incoming transfers error:', err);
+      setIncomingTransfers([]);
+    }
+  };
+
+  const handleSendClub = async (club: Club, recipient: { uid: string; email: string }) => {
+    if (!firebaseUser) return;
+    const { pendingTransferId, pendingTransferTo, ...clubData } = clubToDoc(club);
+    const transferId = await createTransfer(firebaseUser, recipient, club.id, clubData);
+    await updateDoc(doc(db, 'users', firebaseUser.uid, 'clubs', club.id), {
+      pendingTransferId: transferId,
+      pendingTransferTo: recipient.email.trim().toLowerCase(),
+    });
+    fetchClubs();
+  };
+
+  const cancelTransfer = async (club: Club) => {
+    if (!firebaseUser || !club.pendingTransferId) return;
+    // If they already accepted, let the sync finish the move instead of cancelling
+    const outgoing = await getOutgoingTransfers(firebaseUser.uid);
+    const transfer = outgoing.find(t => t.id === club.pendingTransferId);
+    if (transfer?.status === 'pending') {
+      await deleteTransfer(transfer.id);
+      await updateDoc(doc(db, 'users', firebaseUser.uid, 'clubs', club.id), { pendingTransferId: null, pendingTransferTo: null });
+    } else if (!transfer) {
+      await updateDoc(doc(db, 'users', firebaseUser.uid, 'clubs', club.id), { pendingTransferId: null, pendingTransferTo: null });
+    }
+    fetchClubs();
+  };
+
+  const respondToTransfer = async (transfer: ClubTransfer, accept: boolean) => {
+    if (!firebaseUser) return;
+    setRespondingTo(transfer.id);
+    try {
+      if (accept) await acceptTransfer(firebaseUser.uid, transfer);
+      else await declineTransfer(transfer.id);
+      setIncomingTransfers(prev => prev.filter(t => t.id !== transfer.id));
+      if (accept) fetchClubs();
+    } catch (err) {
+      console.error('Transfer response error:', err);
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
   const handleSaveClub = async (club: Club) => {
     if (!firebaseUser) return;
 
-    const payload = {
-      type: club.type,
-      brand: club.brand,
-      model: club.model,
-      loft: club.loft ?? null,
-      setComposition: club.setComposition ?? null,
-      ironNumber: club.ironNumber ?? null,
-      shaftMakeModel: club.shaftMakeModel ?? null,
-      shaftStiffness: club.shaftStiffness ?? null,
-      photoUrl: club.photoUrl ?? null,
-      receiptUrl: club.receiptUrl ?? null,
-      purchaseDate: club.purchaseDate ?? null,
-      price: club.price ?? null,
-      notes: club.notes ?? null,
-      launchData: club.launchData ?? null,
-      status: club.status,
-      tradeInLow: club.tradeInLow ?? null,
-      tradeInHigh: club.tradeInHigh ?? null,
-      lastTradeInCheck: club.lastTradeInCheck ?? null,
-      disposition: club.disposition ?? null,
-      soldPrice: club.soldPrice ?? null,
-      soldDate: club.soldDate ?? null,
-      tradedFor: club.tradedFor ?? null,
-    };
+    const payload = clubToDoc(club);
 
     const clubsCol = collection(db, 'users', firebaseUser.uid, 'clubs');
 
@@ -268,6 +359,24 @@ export default function App() {
           {!isWifeMode && goneData.length > 0 && <div className="p-4 rounded-xl border shadow-sm bg-white border-slate-200"><p className="text-xs text-slate-500 uppercase font-semibold">Sold / Traded</p><p className="text-2xl font-bold text-red-600">${recoupedValue.toFixed(2)}</p><p className="text-[10px] text-slate-400 font-semibold uppercase">{goneData.length} item{goneData.length === 1 ? '' : 's'}</p></div>}
         </div>
 
+        {!isWifeMode && incomingTransfers.length > 0 && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-bold text-emerald-900"><Inbox size={18} className="text-emerald-600" />Incoming Clubs</div>
+            {incomingTransfers.map(t => (
+              <div key={t.id} className="bg-white rounded-lg border border-emerald-100 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-800 truncate">{String(t.club.brand ?? '')} {String(t.club.model ?? '')} <span className="text-slate-400 font-semibold text-xs uppercase">· {String(t.club.type ?? '')}</span></p>
+                  <p className="text-xs text-slate-500">From {t.fromName}{t.fromEmail ? ` (${t.fromEmail})` : ''}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => respondToTransfer(t, true)} disabled={respondingTo === t.id} className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60"><Check size={14} />Accept</button>
+                  <button onClick={() => respondToTransfer(t, false)} disabled={respondingTo === t.id} className="flex items-center gap-1 text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold hover:text-red-600 disabled:opacity-60"><X size={14} />Decline</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className={`flex space-x-1 rounded-xl p-1 mb-6 max-w-md ${isWifeMode ? 'bg-stone-200' : 'bg-slate-200'}`}>
           <button onClick={() => setActiveTab(ClubStatus.BAG)} className={`w-full rounded-lg py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-2 ${activeTab === ClubStatus.BAG ? 'shadow bg-white text-emerald-700' : 'text-slate-600'}`}><LayoutGrid size={16} />My Bag<span className="ml-2 rounded-full py-0.5 px-2 text-xs bg-emerald-100">{bagCount}</span></button>
           <button onClick={() => setActiveTab(ClubStatus.LOCKER)} className={`w-full rounded-lg py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-2 ${activeTab === ClubStatus.LOCKER ? 'shadow bg-white text-emerald-700' : 'text-slate-600'}`}><Archive size={16} />Locker Room<span className="ml-2 rounded-full py-0.5 px-2 text-xs bg-slate-300">{lockerCount}</span></button>
@@ -283,7 +392,7 @@ export default function App() {
         ) : filteredClubs.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {filteredClubs.map(club => (
-              <div key={club.id} className="h-full"><ClubCard club={club} onDelete={removeClub} onUpdate={handleSaveClub} onEdit={openEditModal} onToggleStatus={toggleClubStatus} readOnly={isWifeMode}/></div>
+              <div key={club.id} className="h-full"><ClubCard club={club} onDelete={removeClub} onUpdate={handleSaveClub} onEdit={openEditModal} onToggleStatus={toggleClubStatus} onTransfer={setTransferClub} onCancelTransfer={cancelTransfer} readOnly={isWifeMode}/></div>
             ))}
           </div>
         ) : (
@@ -297,6 +406,7 @@ export default function App() {
 
       {isAddModalOpen && !isWifeMode && <AddClubModal onClose={() => setIsAddModalOpen(false)} onSave={handleSaveClub} initialData={editingClub || undefined}/>}
       {isBagMapOpen && !isWifeMode && <BagMapping clubs={clubs.filter(c => !c.disposition)} onUpdate={handleSaveClub} onClose={() => setIsBagMapOpen(false)} />}
+      {transferClub && !isWifeMode && user && <TransferModal club={transferClub} currentUserEmail={user.email} onClose={() => setTransferClub(null)} onConfirm={handleSendClub} />}
       {isLoginModalOpen && <LoginModal onClose={() => setIsLoginModalOpen(false)} />}
     </div>
   );

@@ -152,6 +152,8 @@ const AddClubModal: React.FC<AddClubModalProps> = ({ onClose, onSave, initialDat
       soldPrice: initialData?.soldPrice,
       soldDate: initialData?.soldDate,
       tradedFor: initialData?.tradedFor,
+      pendingTransferId: initialData?.pendingTransferId,
+      pendingTransferTo: initialData?.pendingTransferTo,
     });
     onClose();
   };

@@ -66,6 +66,8 @@ export interface Club {
   soldPrice?: number; // sale price, or trade-in credit received
   soldDate?: string;
   tradedFor?: string; // what the club was traded for
+  pendingTransferId?: string; // set while a move to another user awaits acceptance
+  pendingTransferTo?: string; // recipient email for the pending move
 }
 
 export interface AIScanResult {
